@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cookie Clicker</title>
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        text-align: center;
+        background-color: #f8f8f8;
+    }
+    #cookie {
+        width: 200px;
+        height: 200px;
+        background-image: url('https://upload.wikimedia.org/wikipedia/commons/5/55/Chocolate_chip_cookie.png');
+        background-size: cover;
+        border: none;
+        cursor: pointer;
+        margin: 20px;
+    }
+    #score {
+        font-size: 2em;
+        margin: 20px;
+    }
+    #shop {
+        margin-top: 20px;
+    }
+    .shop-item {
+        display: flex;
+        justify-content: space-between;
+        width: 300px;
+        margin: 10px auto;
+        padding: 10px;
+        border: 1px solid #ccc;
+        background-color: #fff;
+    }
+    .shop-item button {
+        padding: 10px;
+    }
+    #achievements {
+        margin-top: 20px;
+    }
+    .achievement {
+        margin: 10px 0;
+    }
+    #achievement-popup {
+        position: fixed;
+        top: 10px;
+        left: 50%;
+        transform: translateX(-50%);
+        background-color: #ffeb3b;
+        padding: 10px;
+        border: 1px solid #ccc;
+        display: none;
+    }
+</style>
+</head>
+<body>
+<h1>Cookie Clicker</h1>
+<div id="achievement-popup">Achievement Unlocked!</div>
+<button id="cookie"></button>
+<div id="score">Cookies: 0</div>
+<div id="shop">
+    <div class="shop-item">
+        <span>Upgrade Click (+1 per click) (Level <span id="click-level">0</span>)</span>
+        <button id="upgrade-click">Cost: 10 cookies</button>
+    </div>
+    <div class="shop-item">
+        <span>Auto Clicker (+1 per second) (Level <span id="auto-clicker-level">0</span>)</span>
+        <button id="auto-clicker">Cost: 100 cookies</button>
+    </div>
+    <div class="shop-item" id="auto-clicker-upgrade-item" style="display:none;">
+        <span>Upgrade Auto Clicker Speed (Level <span id="auto-clicker-speed-level">0</span>)</span>
+        <button id="upgrade-auto-clicker">Cost: 20 cookies</button>
+    </div>
+</div>
+<div id="achievements">
+    <h2>Achievements</h2>
+    <div id="achievement-list"></div>
+</div>
+<script>
+    let cookies = parseInt(localStorage.getItem('cookies')) || 0;
+    let cookiesPerClick = parseInt(localStorage.getItem('cookiesPerClick')) || 1;
+    let autoClickerCount = parseInt(localStorage.getItem('autoClickerCount')) || 0;
+    let autoClickerSpeed = parseInt(localStorage.getItem('autoClickerSpeed')) || 1000;
+    let autoClickerLevel = parseInt(localStorage.getItem('autoClickerLevel')) || 0;
+    let autoClickerSpeedLevel = parseInt(localStorage.getItem('autoClickerSpeedLevel')) || 0;
+    let clickLevel = parseInt(localStorage.getItem('clickLevel')) || 0;
+    let upgradeClickCost = parseInt(localStorage.getItem('upgradeClickCost')) || 10;
+    let autoClickerCost = parseInt(localStorage.getItem('autoClickerCost')) || 100;
+    let upgradeAutoClickerCost = parseInt(localStorage.getItem('upgradeAutoClickerCost')) || 20;
+    let record = parseInt(localStorage.getItem('record')) || 0;
+    let achievements = JSON.parse(localStorage.getItem('achievements')) || [];
+    const achievementThresholds = [
+        { threshold: 100, name: 'Cookie Novice' },
+        { threshold: 10000, name: 'Cookie Master' },
+        { threshold: 1000000, name: 'Cookie Overlord' },
+        // Add more achievements as needed
+    ];
+
+    const cookieButton = document.getElementById('cookie');
+    const scoreElement = document.getElementById('score');
+    const upgradeClickButton = document.getElementById('upgrade-click');
+    const autoClickerButton = document.getElementById('auto-clicker');
+    const upgradeAutoClickerButton = document.getElementById('upgrade-auto-clicker');
+    const autoClickerUpgradeItem = document.getElementById('auto-clicker-upgrade-item');
+    const clickLevelElement = document.getElementById('click-level');
+    const autoClickerLevelElement = document.getElementById('auto-clicker-level');
+    const autoClickerSpeedLevelElement = document.getElementById('auto-clicker-speed-level');
+    const achievementListElement = document.getElementById('achievement-list');
+    const achievementPopup = document.getElementById('achievement-popup');
+
+    cookieButton.addEventListener('click', () => {
+        cookies += cookiesPerClick;
+        checkAchievements();
+        updateScore();
+    });
+
+    upgradeClickButton.addEventListener('click', () => {
+        if (cookies >= upgradeClickCost) {
+            cookies -= upgradeClickCost;
+            cookiesPerClick += 1;
+            clickLevel += 1;
+            upgradeClickCost = Math.ceil(upgradeClickCost * 1.45);
+            updateScore();
+        }
+    });
+
+    autoClickerButton.addEventListener('click', () => {
+        if (cookies >= autoClickerCost) {
+            cookies -= autoClickerCost;
+            autoClickerCount += 1;
+            autoClickerLevel += 1;
+            autoClickerCost = Math.ceil(autoClickerCost * 1.45);
+            autoClickerUpgradeItem.style.display = 'block';
+            updateScore();
+        }
+    });
+
+    upgradeAutoClickerButton.addEventListener('click', () => {
+        if (cookies >= upgradeAutoClickerCost) {
+            cookies -= upgradeAutoClickerCost;
+            autoClickerSpeed *= 0.9;
+            autoClickerSpeedLevel += 1;
+            upgradeAutoClickerCost = Math.ceil(upgradeAutoClickerCost * 1.45);
+            updateAutoClicker();
+            updateScore();
+        }
+    });
+
+    function updateAutoClicker() {
+        clearInterval(autoClickerInterval);
+        autoClickerInterval = setInterval(() => {
+            cookies += autoClickerCount;
+            checkAchievements();
+            updateScore();
+        }, autoClickerSpeed);
+    }
+
+    function updateScore() {
+        scoreElement.textContent = `Cookies: ${cookies}`;
+        clickLevelElement.textContent = clickLevel;
+        autoClickerLevelElement.textContent = autoClickerLevel;
+        autoClickerSpeedLevelElement.textContent = autoClickerSpeedLevel;
+        upgradeClickButton.textContent = `Cost: ${upgradeClickCost} cookies`;
+        autoClickerButton.textContent = `Cost: ${autoClickerCost} cookies`;
+        upgradeAutoClickerButton.textContent = `Cost: ${upgradeAutoClickerCost} cookies`;
+
+        localStorage.setItem('cookies', cookies);
+        localStorage.setItem('cookiesPerClick', cookiesPerClick);
+        localStorage.setItem('autoClickerCount', autoClickerCount);
+        localStorage.setItem('autoClickerSpeed', autoClickerSpeed);
+        localStorage.setItem('autoClickerLevel', autoClickerLevel);
+        localStorage.setItem('autoClickerSpeedLevel', autoClickerSpeedLevel);
+        localStorage.setItem('clickLevel', clickLevel);
+        localStorage.setItem('upgradeClickCost', upgradeClickCost);
+        localStorage.setItem('autoClickerCost', autoClickerCost);
+        localStorage.setItem('upgradeAutoClickerCost', upgradeAutoClickerCost);
+
+        if (cookies > record) {
+            record = cookies;
+            localStorage.setItem('record', record);
+        }
+    }
+
+    function checkAchievements() {
+        achievementThresholds.forEach(achievement => {
+            if (cookies >= achievement.threshold && !achievements.some(a => a.name === achievement.name)) {
+                const achievementTime = cookies;
+                const newAchievement = { name: achievement.name, threshold: achievementTime };
+                achievements.push(newAchievement);
+                localStorage.setItem('achievements', JSON.stringify(achievements));
+                displayAchievements();
+                showAchievementPopup(achievement.name);
+            }
+        });
+    }
+
+    function displayAchievements() {
+        achievementListElement.innerHTML = '';
+        achievements.forEach(achievement => {
+            const achievementElement = document.createElement('div');
+            achievementElement.className = 'achievement';
+            achievementElement.textContent = `${achievement.name} - ${achievement.threshold} cookies`;
+            achievementListElement.appendChild(achievementElement);
+        });
+    }
+
+    function showAchievementPopup(name) {
+        achievementPopup.textContent = `Achievement Unlocked: ${name}`;
+        achievementPopup.style.display = 'block';
+        setTimeout(() => {
+            achievementPopup.style.display = 'none';
+        }, 5000);
+    }
+
+    let autoClickerInterval = setInterval(() => {
+        cookies += autoClickerCount;
+        checkAchievements();
+        updateScore();
+    }, autoClickerSpeed);
+
+    updateScore();
+    displayAchievements();
+</script>
+</body>
+</
